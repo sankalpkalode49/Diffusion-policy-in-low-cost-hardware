@@ -1,0 +1,3 @@
+[console_scripts]
+episode_recorder_node = so100_recorder.episode_rec:main
+recorder_node = so100_recorder.recorder_node:main
