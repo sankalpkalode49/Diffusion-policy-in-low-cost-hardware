@@ -10,10 +10,8 @@ setup.py
 ../../build/so100_recorder/so100_recorder.egg-info/zip-safe
 resource/so100_recorder
 so100_recorder/__init__.py
-so100_recorder/camera_test.py
 so100_recorder/diffusion_model.py
 so100_recorder/episode_rec.py
-so100_recorder/recorder_node.py
 test/test_copyright.py
 test/test_flake8.py
 test/test_pep257.py

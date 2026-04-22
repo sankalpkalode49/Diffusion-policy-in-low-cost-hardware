@@ -24,8 +24,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'recorder_node = so100_recorder.recorder_node:main',
+            
             'episode_recorder_node = so100_recorder.episode_rec:main',
+            'training_node = so100_recorder.train:main',
             
         ],
     },
