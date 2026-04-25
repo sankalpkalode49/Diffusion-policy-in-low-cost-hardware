@@ -1,11 +1,10 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import JointState, Image
+from sensor_msgs.msg import JointState, Image, Joy
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
 import os
-from pynput import keyboard
 
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
@@ -15,13 +14,12 @@ class SO100LeRobotRecorder(Node):
         super().__init__('so100_lerobot_recorder')
         self.bridge = CvBridge()
 
-        # 1. Setup LeRobot Dataset structure (Auto-Versioning)
+        # 1. Setup LeRobot Dataset structure
         base_repo_id = "so100_teleop"
         self.dataset_path = os.path.expanduser(f"~/so100_dataset/{base_repo_id}")
         current_repo_id = base_repo_id
         counter = 1
         
-        # Keep checking until we find a folder name that doesn't exist yet
         while os.path.exists(self.dataset_path):
             current_repo_id = f"{base_repo_id}_{counter}"
             self.dataset_path = os.path.expanduser(f"~/so100_dataset/{current_repo_id}")
@@ -49,10 +47,14 @@ class SO100LeRobotRecorder(Node):
             }
         )
 
-        # 2. Setup ROS 2 Topics
+        # 2. Setup ROS 2 Topics (Using Best Effort QoS for cameras to reduce latency)
+        from rclpy.qos import qos_profile_sensor_data
+        
         self.create_subscription(JointState, '/joint_states', self.state_callback, 10)
-        self.create_subscription(Image, '/camera_overhead', self.overhead_cb, 10)
-        self.create_subscription(Image, '/gripper_Cameras', self.wrist_cb, 10)
+        self.create_subscription(Image, '/camera_overhead', self.overhead_cb, qos_profile_sensor_data)
+        self.create_subscription(Image, '/gripper_Cameras', self.wrist_cb, qos_profile_sensor_data)
+        self.create_subscription(Joy, '/joy', self.joy_callback, 10)
+        
         self.cmd_pub = self.create_publisher(JointState, '/joint_command', 10)
 
         # 3. State Variables
@@ -69,34 +71,28 @@ class SO100LeRobotRecorder(Node):
 
         self.latest_overhead = None
         self.latest_wrist = None
+        self.joy_msg = None
 
         # Episode & Toggle logic
         self.is_recording = False
-        self.was_recording = False
         self.episode_frames = 0
         self.is_synced = False
-        self._prev_space_state = False  
+        
+        # Debounce tracking for controller buttons
+        self._prev_record_btn = 0
+        self._prev_home_btn = 0  
 
-        # Keyboard state
-        self.pressed_keys = set()
-        self.step = 0.03
+        self.step = 0.03 # Max speed multiplier
 
-        self.get_logger().info("⌨️ Keyboard control active.")
-        self.get_logger().info("Controls:")
-        self.get_logger().info("  A/D -> shoulder_pan")
-        self.get_logger().info("  W/S -> elbow_flex")
-        self.get_logger().info("  I/K -> shoulder_lift")
-        self.get_logger().info("  J/L -> wrist_flex")
-        self.get_logger().info("  U/O -> wrist_roll")
-        self.get_logger().info("  R/F -> gripper")
-        self.get_logger().info("  SPACE -> start/stop recording")
-        self.get_logger().info("  H -> reset arm to Home")
-
-        self.keyboard_listener = keyboard.Listener(
-            on_press=self.on_press,
-            on_release=self.on_release
-        )
-        self.keyboard_listener.start()
+        self.get_logger().info("🎮 Custom PS5 Controller Layout Active.")
+        self.get_logger().info("  Left Stick (L/R) -> Shoulder Pan")
+        self.get_logger().info("  Left Stick (U/D) -> Shoulder Lift")
+        self.get_logger().info("  Right Stick (U/D) -> Elbow Flex (Reversed for SO100)")
+        self.get_logger().info("  Right Stick (L/R) -> Wrist Flex")
+        self.get_logger().info("  L1/R1 -> Gripper Close/Open")
+        self.get_logger().info("  L2/R2 -> Wrist Roll Left/Right")
+        self.get_logger().info("  X Button -> Start/Stop recording")
+        self.get_logger().info("  Triangle -> Reset arm to Home")
 
         self.timer = self.create_timer(1.0 / 30.0, self.main_loop)
 
@@ -109,7 +105,7 @@ class SO100LeRobotRecorder(Node):
             if not self.is_synced:
                 self.target_angles = self.current_angles.copy()
                 self.is_synced = True
-                self.get_logger().info("✅ Synced with robot state. Keyboard teleop ready.")
+                self.get_logger().info("✅ Synced with robot state. PS5 teleop ready.")
 
     def overhead_cb(self, msg):
         self.latest_overhead = self.bridge.imgmsg_to_cv2(msg, "bgr8")
@@ -117,82 +113,64 @@ class SO100LeRobotRecorder(Node):
     def wrist_cb(self, msg):
         self.latest_wrist = self.bridge.imgmsg_to_cv2(msg, "bgr8")
 
-    def on_press(self, key):
-        try:
-            k = key.char.lower()
-            self.pressed_keys.add(k)
-        except AttributeError:
-            if key == keyboard.Key.space:
-                self.pressed_keys.add('space')
+    def joy_callback(self, msg):
+        self.joy_msg = msg
 
-    def on_release(self, key):
-        try:
-            k = key.char.lower()
-            self.pressed_keys.discard(k)
-        except AttributeError:
-            if key == keyboard.Key.space:
-                self.pressed_keys.discard('space')
+    def apply_joy_control(self):
+        if self.joy_msg is None:
+            return
 
-    def apply_keyboard_control(self):
-        # Joint movement
-        if 'a' in self.pressed_keys:
-            self.target_angles['shoulder_pan'] += self.step
-        if 'd' in self.pressed_keys:
-            self.target_angles['shoulder_pan'] -= self.step
+        axes = self.joy_msg.axes
+        buttons = self.joy_msg.buttons
 
-        if 'w' in self.pressed_keys:
-            self.target_angles['elbow_flex'] -= self.step
-        if 's' in self.pressed_keys:
-            self.target_angles['elbow_flex'] += self.step
+        if len(axes) >= 5 and len(buttons) >= 8:
+            
+            # --- THE 4 ESSENTIAL STICK MOVEMENTS ---
+            self.target_angles['shoulder_pan'] += axes[0] * self.step
+            self.target_angles['shoulder_lift'] += axes[1] * self.step
+            
+            self.target_angles['wrist_flex'] += axes[3] * self.step
+            # REVERSED: Elbow math inverted for SO100 upside-down servo
+            self.target_angles['elbow_flex'] -= axes[4] * self.step
 
-        if 'i' in self.pressed_keys:
-            self.target_angles['shoulder_lift'] += self.step
-        if 'k' in self.pressed_keys:
-            self.target_angles['shoulder_lift'] -= self.step
+            # --- TRIGGERS / BUMPERS ---
+            if buttons[4]: # L1
+                self.target_angles['gripper'] -= self.step
+            if buttons[5]: # R1
+                self.target_angles['gripper'] += self.step
 
-        if 'j' in self.pressed_keys:
-            self.target_angles['wrist_flex'] += self.step
-        if 'l' in self.pressed_keys:
-            self.target_angles['wrist_flex'] -= self.step
+            if buttons[6]: # L2
+                self.target_angles['wrist_roll'] += self.step
+            if buttons[7]: # R2
+                self.target_angles['wrist_roll'] -= self.step
 
-        if 'u' in self.pressed_keys:
-            self.target_angles['wrist_roll'] += self.step
-        if 'o' in self.pressed_keys:
-            self.target_angles['wrist_roll'] -= self.step
+            # --- UTILITY BUTTONS ---
+            current_home_btn = buttons[2]
+            if current_home_btn and not self._prev_home_btn:
+                for name in self.joint_names:
+                    self.target_angles[name] = 0.0
+                self.get_logger().info("🔄 Arm reset to original home position!")
+            self._prev_home_btn = current_home_btn
 
-        if 'r' in self.pressed_keys:
-            self.target_angles['gripper'] += self.step
-        if 'f' in self.pressed_keys:
-            self.target_angles['gripper'] -= self.step
+            current_record_btn = buttons[0]
+            if current_record_btn and not self._prev_record_btn:
+                self.is_recording = not self.is_recording
+                if self.is_recording:
+                    self.get_logger().info("🔴 RECORDING STARTED: New Episode running...")
+                    self.episode_frames = 0
+                else:
+                    if self.episode_frames > 0:
+                        self.dataset.save_episode()
+                        self.get_logger().info(f"✅ EPISODE SAVED! ({self.episode_frames} frames stored).")
+            self._prev_record_btn = current_record_btn
 
-        # Reset to home
-        if 'h' in self.pressed_keys:
-            for name in self.joint_names:
-                self.target_angles[name] = 0.0
-            self.get_logger().info("🔄 Arm reset to original home position!")
-            self.pressed_keys.discard('h')
-
-        # Toggle recording with space
-        current_space = 'space' in self.pressed_keys
-
-        if current_space and not self._prev_space_state:
-            self.is_recording = not self.is_recording
-            if self.is_recording:
-                self.get_logger().info("🔴 RECORDING STARTED: New Episode running...")
-                self.episode_frames = 0
-            else:
-                if self.episode_frames > 0:
-                    self.dataset.save_episode() # I added this back in!
-                    self.get_logger().info(f"✅ EPISODE SAVED! ({self.episode_frames} frames stored).")
-
-        self._prev_space_state = current_space
 
     def main_loop(self):
         if not self.is_synced:
             return
 
-        # Apply keyboard control
-        self.apply_keyboard_control()
+        # Apply controller input
+        self.apply_joy_control()
 
         # 1. Command the robot
         cmd = JointState()
@@ -200,23 +178,11 @@ class SO100LeRobotRecorder(Node):
         cmd.position = [self.target_angles[n] for n in self.joint_names]
         self.cmd_pub.publish(cmd)
 
-        # --- LIVE CAMERA PREVIEW ---
-        if self.latest_overhead is not None:
-            preview_overhead = cv2.resize(self.latest_overhead, (640, 480))
-            cv2.imshow("Overhead Camera", preview_overhead)
-            
-        if self.latest_wrist is not None:
-            preview_wrist = cv2.resize(self.latest_wrist, (640, 480))
-            cv2.imshow("Wrist Camera", preview_wrist)
-            
-        cv2.waitKey(1) # Critical for OpenCV to actually render the windows
-
         # 2. Add frame data if currently recording
         if self.is_recording and self.latest_overhead is not None and self.latest_wrist is not None:
             overhead_rgb = cv2.cvtColor(self.latest_overhead, cv2.COLOR_BGR2RGB)
             wrist_rgb = cv2.cvtColor(self.latest_wrist, cv2.COLOR_BGR2RGB)
 
-            # --- FORCE RESIZE TO 480p ---
             overhead_rgb = cv2.resize(overhead_rgb, (640, 480))
             wrist_rgb = cv2.resize(wrist_rgb, (640, 480))
 
@@ -231,18 +197,14 @@ class SO100LeRobotRecorder(Node):
                 ),
                 "observation.images.overhead": overhead_rgb,
                 "observation.images.wrist": wrist_rgb,
-                "task": "Pick up the yellow rope and place it in the red bowl"
+                "task": "Pick up the rope and place it in the bowl"
             }
 
             self.dataset.add_frame(frame_data)
             self.episode_frames += 1
 
     def destroy_node(self):
-        if hasattr(self, "keyboard_listener"):
-            self.keyboard_listener.stop()
-        cv2.destroyAllWindows() # Ensures windows close cleanly when you exit
         super().destroy_node()
-
 
 def main():
     rclpy.init()
@@ -253,7 +215,6 @@ def main():
         pass
     node.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()

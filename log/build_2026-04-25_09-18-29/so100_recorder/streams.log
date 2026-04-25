@@ -1,0 +1,35 @@
+[0.603s] Invoking command in '/home/sankalp/so100_ws/src/so100_recorder': PYTHONPATH=/home/sankalp/so100_ws/build/so100_recorder/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/so100_recorder build --build-base /home/sankalp/so100_ws/build/so100_recorder/build install --record /home/sankalp/so100_ws/build/so100_recorder/install.log --single-version-externally-managed install_data
+[0.806s] running egg_info
+[0.818s] writing ../../build/so100_recorder/so100_recorder.egg-info/PKG-INFO
+[0.819s] writing dependency_links to ../../build/so100_recorder/so100_recorder.egg-info/dependency_links.txt
+[0.819s] writing entry points to ../../build/so100_recorder/so100_recorder.egg-info/entry_points.txt
+[0.819s] writing requirements to ../../build/so100_recorder/so100_recorder.egg-info/requires.txt
+[0.819s] writing top-level names to ../../build/so100_recorder/so100_recorder.egg-info/top_level.txt
+[0.844s] reading manifest file '../../build/so100_recorder/so100_recorder.egg-info/SOURCES.txt'
+[0.846s] writing manifest file '../../build/so100_recorder/so100_recorder.egg-info/SOURCES.txt'
+[0.846s] running build
+[0.846s] running build_py
+[0.846s] copying so100_recorder/episode_rec.py -> /home/sankalp/so100_ws/build/so100_recorder/build/lib/so100_recorder
+[0.846s] copying so100_recorder/train.py -> /home/sankalp/so100_ws/build/so100_recorder/build/lib/so100_recorder
+[0.847s] copying so100_recorder/diffusion_model.py -> /home/sankalp/so100_ws/build/so100_recorder/build/lib/so100_recorder
+[0.847s] copying so100_recorder/__init__.py -> /home/sankalp/so100_ws/build/so100_recorder/build/lib/so100_recorder
+[0.847s] copying so100_recorder/Dataloader.py -> /home/sankalp/so100_ws/build/so100_recorder/build/lib/so100_recorder
+[0.848s] running install
+[0.851s] running install_lib
+[0.864s] copying /home/sankalp/so100_ws/build/so100_recorder/build/lib/so100_recorder/episode_rec.py -> /home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages/so100_recorder
+[0.864s] copying /home/sankalp/so100_ws/build/so100_recorder/build/lib/so100_recorder/train.py -> /home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages/so100_recorder
+[0.864s] copying /home/sankalp/so100_ws/build/so100_recorder/build/lib/so100_recorder/Dataloader.py -> /home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages/so100_recorder
+[0.865s] byte-compiling /home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages/so100_recorder/episode_rec.py to episode_rec.cpython-310.pyc
+[0.867s] byte-compiling /home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages/so100_recorder/train.py to train.cpython-310.pyc
+[0.867s] byte-compiling /home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages/so100_recorder/Dataloader.py to Dataloader.cpython-310.pyc
+[0.868s] running install_data
+[0.868s] copying resource/so100_recorder -> /home/sankalp/so100_ws/install/so100_recorder/share/ament_index/resource_index/packages
+[0.868s] copying package.xml -> /home/sankalp/so100_ws/install/so100_recorder/share/so100_recorder
+[0.869s] running install_egg_info
+[0.881s] removing '/home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages/so100_recorder-0.0.0-py3.10.egg-info' (and everything under it)
+[0.882s] Copying ../../build/so100_recorder/so100_recorder.egg-info to /home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages/so100_recorder-0.0.0-py3.10.egg-info
+[0.882s] running install_scripts
+[0.981s] Installing episode_recorder_node script to /home/sankalp/so100_ws/install/so100_recorder/lib/so100_recorder
+[0.981s] Installing training_node script to /home/sankalp/so100_ws/install/so100_recorder/lib/so100_recorder
+[0.981s] writing list of installed files to '/home/sankalp/so100_ws/build/so100_recorder/install.log'
+[1.007s] Invoked command in '/home/sankalp/so100_ws/src/so100_recorder' returned '0': PYTHONPATH=/home/sankalp/so100_ws/build/so100_recorder/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/so100_recorder build --build-base /home/sankalp/so100_ws/build/so100_recorder/build install --record /home/sankalp/so100_ws/build/so100_recorder/install.log --single-version-externally-managed install_data
