@@ -1,0 +1,23 @@
+[0.489s] Invoking command in '/home/sankalp/so100_ws/build/so100_recorder': PYTHONPATH=/home/sankalp/so100_ws/build/so100_recorder/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/sankalp/so100_ws/build/so100_recorder/build --no-deps symlink_data
+[0.692s] running develop
+[0.830s] running egg_info
+[0.839s] writing so100_recorder.egg-info/PKG-INFO
+[0.840s] writing dependency_links to so100_recorder.egg-info/dependency_links.txt
+[0.840s] writing entry points to so100_recorder.egg-info/entry_points.txt
+[0.840s] writing requirements to so100_recorder.egg-info/requires.txt
+[0.840s] writing top-level names to so100_recorder.egg-info/top_level.txt
+[0.860s] reading manifest file 'so100_recorder.egg-info/SOURCES.txt'
+[0.862s] writing manifest file 'so100_recorder.egg-info/SOURCES.txt'
+[0.872s] running build_ext
+[0.872s] Creating /home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages/so100-recorder.egg-link (link to .)
+[0.873s] Installing diffusion_deployment_node script to /home/sankalp/so100_ws/install/so100_recorder/lib/so100_recorder
+[0.873s] Installing episode_recorder_node script to /home/sankalp/so100_ws/install/so100_recorder/lib/so100_recorder
+[0.873s] Installing follower_node script to /home/sankalp/so100_ws/install/so100_recorder/lib/so100_recorder
+[0.873s] Installing ps_arm_ctl script to /home/sankalp/so100_ws/install/so100_recorder/lib/so100_recorder
+[0.873s] Installing servo_node script to /home/sankalp/so100_ws/install/so100_recorder/lib/so100_recorder
+[0.873s] Installing telop_node script to /home/sankalp/so100_ws/install/so100_recorder/lib/so100_recorder
+[0.873s] Installing training_node script to /home/sankalp/so100_ws/install/so100_recorder/lib/so100_recorder
+[0.873s] 
+[0.873s] Installed /home/sankalp/so100_ws/build/so100_recorder
+[0.873s] running symlink_data
+[0.901s] Invoked command in '/home/sankalp/so100_ws/build/so100_recorder' returned '0': PYTHONPATH=/home/sankalp/so100_ws/build/so100_recorder/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/sankalp/so100_ws/install/so100_recorder/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/sankalp/so100_ws/build/so100_recorder/build --no-deps symlink_data

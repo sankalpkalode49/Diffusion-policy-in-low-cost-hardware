@@ -5,7 +5,6 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 import os
-from rclpy.qos import qos_profile_sensor_data
 
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
@@ -48,8 +47,10 @@ class SO100LeRobotRecorder(Node):
             }
         )
 
-        # 2. Setup ROS 2 Topics
-        self.create_subscription(JointState, '/joint_states', self.state_callback, qos_profile_sensor_data)
+        # 2. Setup ROS 2 Topics (Using Best Effort QoS for cameras to reduce latency)
+        from rclpy.qos import qos_profile_sensor_data
+        
+        self.create_subscription(JointState, '/joint_states', self.state_callback, 10)
         self.create_subscription(Image, '/camera_overhead', self.overhead_cb, qos_profile_sensor_data)
         self.create_subscription(Image, '/gripper_Cameras', self.wrist_cb, qos_profile_sensor_data)
         self.create_subscription(Joy, '/joy', self.joy_callback, 10)
@@ -84,10 +85,9 @@ class SO100LeRobotRecorder(Node):
         self.step = 0.03 # Max speed multiplier
 
         self.get_logger().info("🎮 Custom PS5 Controller Layout Active.")
-        self.get_logger().info("Controls:")
         self.get_logger().info("  Left Stick (L/R) -> Shoulder Pan")
         self.get_logger().info("  Left Stick (U/D) -> Shoulder Lift")
-        self.get_logger().info("  Right Stick (U/D) -> Elbow Flex")
+        self.get_logger().info("  Right Stick (U/D) -> Elbow Flex (Reversed for SO100)")
         self.get_logger().info("  Right Stick (L/R) -> Wrist Flex")
         self.get_logger().info("  L1/R1 -> Gripper Close/Open")
         self.get_logger().info("  L2/R2 -> Wrist Roll Left/Right")
@@ -123,33 +123,28 @@ class SO100LeRobotRecorder(Node):
         axes = self.joy_msg.axes
         buttons = self.joy_msg.buttons
 
-        # Ensure arrays are long enough to avoid indexing errors
         if len(axes) >= 5 and len(buttons) >= 8:
             
             # --- THE 4 ESSENTIAL STICK MOVEMENTS ---
-            # Left Stick
             self.target_angles['shoulder_pan'] += axes[0] * self.step
             self.target_angles['shoulder_lift'] += axes[1] * self.step
             
-            # Right Stick
             self.target_angles['wrist_flex'] += axes[3] * self.step
+            # REVERSED: Elbow math inverted for SO100 upside-down servo
             self.target_angles['elbow_flex'] -= axes[4] * self.step
 
             # --- TRIGGERS / BUMPERS ---
-            # Gripper control (L1 = Close, R1 = Open)
             if buttons[4]: # L1
                 self.target_angles['gripper'] -= self.step
             if buttons[5]: # R1
                 self.target_angles['gripper'] += self.step
 
-            # Wrist Roll (L2 = Roll Left, R2 = Roll Right)
             if buttons[6]: # L2
                 self.target_angles['wrist_roll'] += self.step
             if buttons[7]: # R2
                 self.target_angles['wrist_roll'] -= self.step
 
             # --- UTILITY BUTTONS ---
-            # Reset to home (Triangle button = index 2)
             current_home_btn = buttons[2]
             if current_home_btn and not self._prev_home_btn:
                 for name in self.joint_names:
@@ -157,7 +152,6 @@ class SO100LeRobotRecorder(Node):
                 self.get_logger().info("🔄 Arm reset to original home position!")
             self._prev_home_btn = current_home_btn
 
-            # Toggle recording (X button = index 0)
             current_record_btn = buttons[0]
             if current_record_btn and not self._prev_record_btn:
                 self.is_recording = not self.is_recording
@@ -169,6 +163,7 @@ class SO100LeRobotRecorder(Node):
                         self.dataset.save_episode()
                         self.get_logger().info(f"✅ EPISODE SAVED! ({self.episode_frames} frames stored).")
             self._prev_record_btn = current_record_btn
+
 
     def main_loop(self):
         if not self.is_synced:
@@ -182,17 +177,6 @@ class SO100LeRobotRecorder(Node):
         cmd.name = self.joint_names
         cmd.position = [self.target_angles[n] for n in self.joint_names]
         self.cmd_pub.publish(cmd)
-
-        # --- LIVE CAMERA PREVIEW ---
-        if self.latest_overhead is not None:
-            preview_overhead = cv2.resize(self.latest_overhead, (640, 480))
-            cv2.imshow("Overhead Camera", preview_overhead)
-            
-        if self.latest_wrist is not None:
-            preview_wrist = cv2.resize(self.latest_wrist, (640, 480))
-            cv2.imshow("Wrist Camera", preview_wrist)
-            
-        cv2.waitKey(1)
 
         # 2. Add frame data if currently recording
         if self.is_recording and self.latest_overhead is not None and self.latest_wrist is not None:
@@ -219,10 +203,28 @@ class SO100LeRobotRecorder(Node):
             self.dataset.add_frame(frame_data)
             self.episode_frames += 1
 
-    def destroy_node(self):
-        cv2.destroyAllWindows()
-        super().destroy_node()
+        # --- 3. VISUALIZATION BLOCK (TWO WINDOWS) ---
+        if self.latest_overhead is not None and self.latest_wrist is not None:
+            # Resize slightly for better display performance, or leave raw if you prefer
+            preview_overhead = cv2.resize(self.latest_overhead, (480, 360))
+            preview_wrist = cv2.resize(self.latest_wrist, (480, 360))
 
+            # Draw a status indicator on both feeds
+            status_text = "RECORDING" if self.is_recording else "IDLE (X to Start)"
+            color = (0, 0, 255) if self.is_recording else (0, 255, 0)
+            
+            cv2.putText(preview_overhead, status_text, (10, 30), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            cv2.putText(preview_wrist, status_text, (10, 30), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+            # Show in two completely separate windows
+            cv2.imshow("Overhead Camera", preview_overhead)
+            cv2.imshow("Wrist Camera", preview_wrist)
+            cv2.waitKey(1) # Required for the windows to refresh
+
+    def destroy_node(self):
+        super().destroy_node()
 
 def main():
     rclpy.init()
@@ -233,7 +235,6 @@ def main():
         pass
     node.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()

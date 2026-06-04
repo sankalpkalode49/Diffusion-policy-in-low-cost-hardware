@@ -1,69 +1,80 @@
 import os
+import glob
 import pandas as pd
+import numpy as np
 import torch
-import torchvision.io as io
-from torch.utils.data import Dataset, DataLoader
+import cv2
+from torch.utils.data import Dataset
 
 class SO100Dataset(Dataset):
     def __init__(self, dataset_dir, chunk_size=16):
-        """
-        dataset_dir: Path to your 'so100_teleop' folder.
-        chunk_size: How many future steps the U-Net needs to predict (default 16).
-        """
         self.dataset_dir = dataset_dir
         self.chunk_size = chunk_size
-        
-        # 1. Load the master episode list
-        meta_path = os.path.join(dataset_dir, "meta", "episodes.parquet")
-        self.episodes_df = pd.read_parquet(meta_path)
-        
-        # 2. Build a list of every single valid frame index across all episodes.
         self.valid_indices = []
-        for index, row in self.episodes_df.iterrows():
-            ep_id = row['episode_index']
-            length = row['length']
+        
+        # 🔴 NEW: Action Normalization Bounds
+        self.TICK_MIN = torch.tensor([0., 1698., 460., 3354.], dtype=torch.float32)
+        self.TICK_MAX = torch.tensor([2500., 4090., 2677., 4095.], dtype=torch.float32)
+        
+        # --- 1. PARQUET LOADING ---
+        data_dir = os.path.join(dataset_dir, "data")
+        parquet_files = glob.glob(os.path.join(data_dir, "**", "*.parquet"), recursive=True)
+        
+        if not parquet_files:
+            raise FileNotFoundError(f"Could not find any .parquet files in {data_dir}.")
+            
+        print(f"🔍 Found {len(parquet_files)} raw data files. Merging...")
+        parquet_files.sort()
+        dfs = []
+        for file in parquet_files:
+            df = pd.read_parquet(file)
+            if 'episode_index' not in df.columns:
+                ep_id = int(os.path.basename(file).split('_')[1].split('.')[0])
+                df['episode_index'] = ep_id
+            dfs.append(df)
+            
+        self.master_df = pd.concat(dfs, ignore_index=True)
+        
+        # --- 2. INDEX CALCULATION ---
+        episodes = self.master_df.groupby('episode_index')
+        for ep_id, group in episodes:
+            length = len(group)
             if length > self.chunk_size:
-                for start_idx in range(length - self.chunk_size):
-                    self.valid_indices.append((ep_id, start_idx))
+                first_row = group.index[0] 
+                for frame_idx in range(length - self.chunk_size):
+                    self.valid_indices.append((ep_id, first_row + frame_idx))
 
-        print(f"Loaded {len(self.episodes_df)} episodes. Total training samples: {len(self.valid_indices)}")
+        print(f"✅ Loaded {len(episodes)} episodes. Total training samples: {len(self.valid_indices)}")
 
     def __len__(self):
         return len(self.valid_indices)
 
+    def _get_frame(self, absolute_row_idx):
+        img_path = os.path.join(self.dataset_dir, "frames", f"frame_{absolute_row_idx:06d}.jpg")
+        
+        frame = cv2.imread(img_path)
+        if frame is None:
+            raise RuntimeError(f"Missing frame image: {img_path}")
+            
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_tensor = torch.tensor(frame_rgb, dtype=torch.float32).permute(2, 0, 1) / 255.0
+        return frame_tensor
+
     def __getitem__(self, idx):
-        ep_id, start_idx = self.valid_indices[idx]
+        ep_id, absolute_row_idx = self.valid_indices[idx]
         
-        # Format the episode ID (e.g., 0 -> "000000")
-        ep_str = f"episode_{ep_id:06d}"
+        chunk_data = self.master_df.iloc[absolute_row_idx : absolute_row_idx + self.chunk_size]
         
-        # Paths to the specific episode's data
-        parquet_path = os.path.join(self.dataset_dir, "data", "chunk-000", f"{ep_str}.parquet")
-        vid_dir = os.path.join(self.dataset_dir, "videos", "chunk-000") # <-- Fixed to match your LeRobot folder!
+        actions = torch.tensor(np.array(chunk_data['action'].tolist()), dtype=torch.float32)
         
-        # 1. Load the Parquet file for this episode
-        ep_data = pd.read_parquet(parquet_path)
+        # 🔴 NEW: Scale actions to [-1, 1] range for DDPM
+        actions = 2.0 * (actions - self.TICK_MIN) / (self.TICK_MAX - self.TICK_MIN) - 1.0
         
-        # Slice the specific chunk of data we need (e.g., frames 40 to 56)
-        chunk_data = ep_data.iloc[start_idx : start_idx + self.chunk_size]
-        
-        # Extract the actions and current state
-        actions = torch.tensor(chunk_data['action'].tolist(), dtype=torch.float32)
-        state = torch.tensor(chunk_data['observation.state'].tolist(), dtype=torch.float32)[0]
-        
-        # 2. Load the Images for the current frame
-        overhead_vid_path = os.path.join(vid_dir, f"observation.images.overhead_{ep_str}.mp4")
-        wrist_vid_path = os.path.join(vid_dir, f"observation.images.wrist_{ep_str}.mp4")
-        
-        overhead_frames, _, _ = io.read_video(overhead_vid_path, pts_unit='sec', output_format="TCHW")
-        wrist_frames, _, _ = io.read_video(wrist_vid_path, pts_unit='sec', output_format="TCHW")
-        
-        overhead_img = overhead_frames[start_idx].float() / 255.0 # Normalize to [0, 1]
-        wrist_img = wrist_frames[start_idx].float() / 255.0
+        state = torch.tensor(np.array(chunk_data['observation.state'].tolist()), dtype=torch.float32)[0]
+        img = self._get_frame(absolute_row_idx)
         
         return {
-            "overhead_img": overhead_img,
-            "wrist_img": wrist_img,
+            "img": img,
             "state": state,
             "actions": actions
         }

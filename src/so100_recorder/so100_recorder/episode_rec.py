@@ -203,6 +203,26 @@ class SO100LeRobotRecorder(Node):
             self.dataset.add_frame(frame_data)
             self.episode_frames += 1
 
+        # --- 3. VISUALIZATION BLOCK (TWO WINDOWS) ---
+        if self.latest_overhead is not None and self.latest_wrist is not None:
+            # Resize slightly for better display performance, or leave raw if you prefer
+            preview_overhead = cv2.resize(self.latest_overhead, (480, 360))
+            preview_wrist = cv2.resize(self.latest_wrist, (480, 360))
+
+            # Draw a status indicator on both feeds
+            status_text = "RECORDING" if self.is_recording else "IDLE (X to Start)"
+            color = (0, 0, 255) if self.is_recording else (0, 255, 0)
+            
+            cv2.putText(preview_overhead, status_text, (10, 30), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            cv2.putText(preview_wrist, status_text, (10, 30), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+            # Show in two completely separate windows
+            cv2.imshow("Overhead Camera", preview_overhead)
+            cv2.imshow("Wrist Camera", preview_wrist)
+            cv2.waitKey(1) # Required for the windows to refresh
+
     def destroy_node(self):
         super().destroy_node()
 

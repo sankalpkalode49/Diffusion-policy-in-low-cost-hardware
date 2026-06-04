@@ -27,6 +27,14 @@ setup(
             
             'episode_recorder_node = so100_recorder.episode_rec:main',
             'training_node = so100_recorder.train:main',
+            'telop_node = so100_recorder.teleop_rec:main',
+            'servo_node = so100_recorder.servo:main',
+            'ps_arm_ctl = so100_recorder.hold:main',
+            'follower_node = so100_recorder.arm_follower:main',
+            'diffusion_deployment_node = so100_recorder.inference:main',
+            'inverse_kinematics_tester = so100_recorder.keyboard_ctl:main',
+            'ik_recorder_node = so100_recorder.IK:main',
+            
             
         ],
     },
