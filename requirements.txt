@@ -1,0 +1,10 @@
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+pandas>=2.0.0
+opencv-python>=4.8.0
+pyserial>=3.5
+matplotlib>=3.7.0
+rclpy>=3.3.0
+sensor-msgs>=4.2.0
+cv-bridge>=3.2.0
