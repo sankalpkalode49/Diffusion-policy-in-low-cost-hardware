@@ -1,35 +1,37 @@
-import cv2
-import os
+"""Extract every video frame of the teleop dataset to frames/frame_XXXXXX.jpg for SO100Dataset."""
 import glob
+import os
 
-# Setup paths
-vid_dir = os.path.expanduser("~/so100_dataset/so100_teleop/videos/observation.images.main_camera/chunk-000")
-vid_files = glob.glob(os.path.join(vid_dir, "*.mp4"))
-vid_files.sort()
+import cv2
 
-out_dir = os.path.expanduser("~/so100_dataset/so100_teleop/frames")
-os.makedirs(out_dir, exist_ok=True)
+from so100_recorder import config
 
-print(f"Found {len(vid_files)} videos. Starting extraction...")
+VIDEO_DIR = os.path.join(config.DATASET_DIR, 'videos', 'observation.images.main_camera', 'chunk-000')
+OUT_DIR = os.path.join(config.DATASET_DIR, 'frames')
 
-global_idx = 0
-for vid in vid_files:
-    print(f"Extracting {os.path.basename(vid)}...")
-    cap = cv2.VideoCapture(vid)
-    
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        
-        # Save as frame_000000.jpg, frame_000001.jpg, etc.
-        img_path = os.path.join(out_dir, f"frame_{global_idx:06d}.jpg")
-        cv2.imwrite(img_path, frame)
-        global_idx += 1
-        
-        if global_idx % 2000 == 0:
-            print(f"   -> Extracted {global_idx} frames so far...")
-            
-    cap.release()
 
-print(f"✅ DONE! Successfully extracted {global_idx} images to {out_dir}")
+def main():
+    vid_files = sorted(glob.glob(os.path.join(VIDEO_DIR, '*.mp4')))
+    os.makedirs(OUT_DIR, exist_ok=True)
+    print(f'Found {len(vid_files)} videos. Starting extraction...')
+
+    # Frames are numbered globally across videos, matching the merged Parquet row index.
+    global_idx = 0
+    for vid in vid_files:
+        print(f'Extracting {os.path.basename(vid)}...')
+        cap = cv2.VideoCapture(vid)
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            cv2.imwrite(os.path.join(OUT_DIR, f'frame_{global_idx:06d}.jpg'), frame)
+            global_idx += 1
+            if global_idx % 2000 == 0:
+                print(f'   -> Extracted {global_idx} frames so far...')
+        cap.release()
+
+    print(f'Done! Extracted {global_idx} images to {OUT_DIR}')
+
+
+if __name__ == '__main__':
+    main()

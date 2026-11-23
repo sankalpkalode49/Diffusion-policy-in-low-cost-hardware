@@ -3,16 +3,15 @@
 <package format="3">
   <name>so100_recorder</name>
   <version>0.0.0</version>
-  <description>Dataset recorder for SO-ARM100 in Isaac Sim using PS5 Controller</description>
+  <description>Diffusion policy data collection, training and deployment for the SO-100 arm</description>
   <maintainer email="sankalp@todo.todo">Sankalp</maintainer>
-  <license>Apache-2.0</license>
+  <license>MIT</license>
 
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
-  <depend>std_msgs</depend>
-  <depend>geometry_msgs</depend>
   <depend>cv_bridge</depend>
-  <depend>cv2</depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-serial</exec_depend>
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>

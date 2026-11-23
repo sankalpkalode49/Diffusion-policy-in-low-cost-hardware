@@ -15,8 +15,8 @@ setup(
     zip_safe=True,
     maintainer='sankalp',
     maintainer_email='sankalp@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='Diffusion policy data collection, training and deployment for the SO-100 arm',
+    license='MIT',
     extras_require={
         'test': [
             'pytest',
@@ -24,18 +24,17 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            
+            # Names used in the README
+            'scan = so100_recorder.scan:main',
+            'teleop_rec = so100_recorder.teleop_rec:main',
+            'extract_frame = so100_recorder.extract_frame:main',
+            'train = so100_recorder.train:main',
+            'inference = so100_recorder.inference:main',
+            # Original names, kept for compatibility
             'episode_recorder_node = so100_recorder.episode_rec:main',
             'training_node = so100_recorder.train:main',
             'telop_node = so100_recorder.teleop_rec:main',
-            'servo_node = so100_recorder.servo:main',
-            'ps_arm_ctl = so100_recorder.hold:main',
-            'follower_node = so100_recorder.arm_follower:main',
             'diffusion_deployment_node = so100_recorder.inference:main',
-            'inverse_kinematics_tester = so100_recorder.keyboard_ctl:main',
-            'ik_recorder_node = so100_recorder.IK:main',
-            
-            
         ],
     },
 )

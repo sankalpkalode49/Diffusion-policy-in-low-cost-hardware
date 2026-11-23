@@ -63,7 +63,9 @@ Key advantages over traditional BC/IL:
 
 ```
 so100-diffusion-policy/
-├── src/so100_recorder/
+├── src/so100_recorder/so100_recorder/
+│   ├── config.py               # Shared servo limits, paths and model dimensions
+│   ├── feetech.py              # FeeTech STS3215 serial protocol helpers
 │   ├── diffusion_model.py      # Core diffusion model (Vision Encoder, DDPM, U-Net)
 │   ├── Dataloader.py           # SO100Dataset: Parquet loading, action normalization
 │   ├── train.py                # ROS2-integrated training loop with checkpointing
@@ -151,7 +153,7 @@ sudo usermod -a -G dialout $USER
 ### 1. Hardware Test
 Verify servo communication before training:
 ```bash
-python3 src/so100_recorder/scan.py
+ros2 run so100_recorder scan
 ```
 This scans all 6 servo IDs and runs a safe wiggle sequence.
 
@@ -175,7 +177,7 @@ ros2 run v4l2_camera v4l2_camera_node
 ### 3. Frame Extraction
 Convert recorded video chunks to frame images:
 ```bash
-python3 src/so100_recorder/extract_frame.py
+ros2 run so100_recorder extract_frame
 ```
 
 ### 4. Training
